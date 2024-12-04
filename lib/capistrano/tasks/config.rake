@@ -14,7 +14,7 @@ namespace :load do
   end
 end
 
-namespace :deploy do
+namespace :hgpacker do
   def passenger_path
     deploy_path.join(fetch(:passenger_path, "passenger"))
   end
@@ -33,8 +33,8 @@ namespace :deploy do
 
   desc "Install application keys from Secrets Manager"
   task :keys do
-    invoke "deploy:keys:credentials"
-    invoke "deploy:keys:google_translate"
+    invoke "hgpacker:keys:credentials"
+    invoke "hgpacker:keys:google_translate"
   end
 
   namespace :keys do
@@ -76,8 +76,8 @@ namespace :deploy do
 
   desc "Configure log managment"
   task :logs do
-    invoke "deploy:logs:logrotate"
-    invoke "deploy:logs:cloudwatch_agent"
+    invoke "hgpacker:logs:logrotate"
+    invoke "hgpacker:logs:cloudwatch_agent"
   end
 
   namespace :logs do
