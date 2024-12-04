@@ -1,0 +1,96 @@
+require:
+  - rubocop-rspec
+
+AllCops:
+  TargetRailsVersion: 7.0
+  NewCops: enable
+  Exclude:
+    - bin/*
+    - sandbox/**/*
+    - public/dispatch.rb
+
+Layout/BeginEndAlignment:
+  EnforcedStyleAlignWith: start_of_line
+
+Layout/EmptyLineBetweenDefs:
+  AllowAdjacentOneLineDefs: true
+
+Layout/CaseIndentation:
+  EnforcedStyle: end
+
+Layout/FirstHashElementIndentation:
+  EnforcedStyle: consistent
+
+Layout/LineLength:
+  Enabled: false
+
+Layout/SpaceInsideBlockBraces:
+  SpaceBeforeBlockParameters: false
+
+Lint/AmbiguousOperatorPrecedence:
+  Enabled: false
+
+Layout/EndAlignment:
+  EnforcedStyleAlignWith: variable
+
+Metrics:
+  Enabled: false
+
+Naming/MethodParameterName:
+  Enabled: false
+
+Performance/StringInclude:
+  Enabled: false
+
+RSpec/AnyInstance:
+  Enabled: false
+
+RSpec/ContextWording:
+  Prefixes:
+    - when
+    - with
+    - without
+    - if
+
+RSpec/ExampleLength:
+  Enabled: false
+
+RSpec/LetSetup:
+  Enabled: false
+
+RSpec/MultipleExpectations:
+  Enabled: false
+
+RSpec/MultipleMemoizedHelpers:
+  Enabled: false
+
+RSpec/NamedSubject:
+  Enabled: false
+
+RSpec/NestedGroups:
+  Max: 5
+
+RSpec/SubjectStub:
+  Enabled: false
+
+RSpec/VerifiedDoubles:
+  Enabled: false
+
+Style/AccessorGrouping:
+  Enabled: false
+
+Style/BarePercentLiterals:
+  EnforcedStyle: percent_q
+
+Style/Documentation:
+  Enabled: false
+
+Style/RegexpLiteral:
+  EnforcedStyle: percent_r
+  AllowInnerSlashes: false
+
+Style/StringLiterals:
+  EnforcedStyle: double_quotes
+
+Style/YodaCondition:
+  EnforcedStyle: forbid_for_equality_operators_only
