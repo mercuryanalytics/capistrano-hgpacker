@@ -49,13 +49,16 @@ up() {
     exit 0
   fi
 
+  # Capistrano creates shared/tmp/pids only for apps that link tmp/pids.
+  mkdir -p "$(dirname "$LOCK_FILE")"
+
   RUBY_BIN=$(ruby_bin)
   export PATH="$RUBY_BIN:$PATH"
 
   cd "$APPDIR/current" || exit 1
 
   # --no-pidfile + -k (kill-others) + an explicit lock under release-stable
-  # shared/pids is the hot-swap: a new manager spawns workers on the new code,
+  # shared/tmp/pids is the hot-swap: a new manager spawns workers on the new code,
   # then SIGINTs the old manager. With TERM_CHILD unset, old workers finish their
   # current job on the old code and self-exit; the old manager exits immediately.
   # At boot (no existing pool) -k is a no-op, so `up` serves cold start *and*
@@ -128,7 +131,7 @@ if [ ! -d "$APPDIR" ]; then
   exit 1
 fi
 
-LOCK_FILE="$APPDIR/shared/pids/resque-pool.lock"
+LOCK_FILE="$APPDIR/shared/tmp/pids/resque-pool.lock"
 STDOUT_LOG="$APPDIR/shared/log/resque-pool.stdout.log"
 STDERR_LOG="$APPDIR/shared/log/resque-pool.stderr.log"
 
