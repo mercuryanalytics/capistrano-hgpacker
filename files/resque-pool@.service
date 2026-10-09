@@ -24,6 +24,9 @@ KillSignal=SIGQUIT
 # Backstop for a hung `down` only — NOT a cap on job runtime. `down` sends QUIT
 # and returns immediately; KillMode=process protects the draining work.
 TimeoutStopSec=60
+# One OOM-killed worker must not take down the pool: systemd's default
+# OOMPolicy=stop would run ExecStop and QUIT the manager, draining every worker.
+OOMPolicy=continue
 ExecStart=/usr/local/bin/resque-pool-app %i up
 ExecReload=/usr/local/bin/resque-pool-app %i up
 ExecStop=/usr/local/bin/resque-pool-app %i down

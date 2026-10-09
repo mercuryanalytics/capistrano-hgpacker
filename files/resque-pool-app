@@ -89,19 +89,26 @@ down() {
   log "sent QUIT to resque-pool manager(s) for $APP: $pids"
 }
 
+# Exit status: 0 a manager is running, 3 none is (LSB "not running"), 4 the app
+# has no resque-pool.yml, so none is expected. resque-pool-watchdog@ acts on 3.
 status() {
-  local pids
+  local pids rc=0
   pids=$(list_managers)
   if [ -n "$pids" ]; then
     echo "resque-pool manager(s) for $APP: $pids"
+  elif [ ! -f "$APPDIR/current/config/resque-pool.yml" ]; then
+    echo "no resque-pool.yml at $APPDIR/current/config — no manager expected"
+    rc=4
   else
     echo "no resque-pool manager running for $APP"
+    rc=3
   fi
   if [ -f "$LOCK_FILE" ]; then
     echo "lock file: $LOCK_FILE (held)"
   else
     echo "lock file: none at $LOCK_FILE"
   fi
+  return $rc
 }
 
 APP=$1; shift
