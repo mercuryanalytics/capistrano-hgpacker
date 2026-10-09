@@ -8,9 +8,7 @@ namespace :hgpacker do
       {
         "passenger@#{app}" => { roles: :web, verb: "reload-or-restart", in: :sequence, wait: 5 },
         "resque-pool@#{app}" => { roles: :resque, verb: "reload-or-restart" },
-        "resque-pool-watchdog@#{app}.timer" => { roles: :resque, verb: "start" },
-        # Generated from zram-generator.conf, so it has no [Install] section to enable.
-        "systemd-zram-setup@zram0" => { roles: :all, verb: "start", enable: false }
+        "resque-pool-watchdog@#{app}.timer" => { roles: :resque, verb: "start" }
       }
     }
   end

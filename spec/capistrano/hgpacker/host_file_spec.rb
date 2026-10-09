@@ -28,8 +28,8 @@ RSpec.describe Capistrano::Hgpacker::HostFile do
 
     it "prefers the app's config/hgpacker over the gem's files" do
       Dir.mktmpdir do |dir|
-        File.write(File.join(dir, "zram-generator.conf"), "app's own\n")
-        file = build("/etc/systemd/zram-generator.conf", { source: "zram-generator.conf" }, search_paths: [dir, Capistrano::Hgpacker::FILES_PATH])
+        File.write(File.join(dir, "resque-pool@.service"), "app's own\n")
+        file = build("/etc/systemd/system/resque-pool@.service", { source: "resque-pool@.service" }, search_paths: [dir, Capistrano::Hgpacker::FILES_PATH])
         expect(file.content).to eq("app's own\n")
       end
     end
@@ -39,7 +39,7 @@ RSpec.describe Capistrano::Hgpacker::HostFile do
     end
 
     it "defaults to 0644 root:root on every role" do
-      file = build("/x", { source: "zram-generator.conf" })
+      file = build("/x", { source: "resque-pool-watchdog@.timer" })
       expect([file.mode, file.user, file.group, file.roles]).to eq(["0644", "root", "root", [:all]])
     end
   end

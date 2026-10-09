@@ -27,7 +27,7 @@ namespace :hgpacker do
   end
 
   task :defaults do
-    set :required_packages, %w[systemd-zram-generator]
+    set :required_packages, []
 
     set :hgpacker_manifest_path, -> { "/etc/hgpacker/#{fetch(:application)}.manifest" }
 
@@ -37,8 +37,7 @@ namespace :hgpacker do
         "/etc/systemd/system/resque-pool@.service" => { source: "resque-pool@.service", roles: :resque },
         "/usr/local/bin/resque-pool-app" => { source: "resque-pool-app", mode: "0755", roles: :resque },
         "/etc/systemd/system/resque-pool-watchdog@.service" => { source: "resque-pool-watchdog@.service", roles: :resque },
-        "/etc/systemd/system/resque-pool-watchdog@.timer" => { source: "resque-pool-watchdog@.timer", roles: :resque },
-        "/etc/systemd/zram-generator.conf" => { source: "zram-generator.conf" }
+        "/etc/systemd/system/resque-pool-watchdog@.timer" => { source: "resque-pool-watchdog@.timer", roles: :resque }
       }
       if fetch(:hgpacker_resque_memory)
         files["/etc/systemd/system/resque-pool@#{fetch(:application)}.service.d/10-memory.conf"] =

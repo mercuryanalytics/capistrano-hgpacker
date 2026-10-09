@@ -1,14 +1,15 @@
 # capistrano-hgpacker
 
-Capistrano 3 tasks for Rails apps on EC2 hosts built from Mercury's hg-packer AMI.
-On every deploy the gem installs the app's apt packages and host files (systemd
-units, drop-ins, wrappers), records them in a manifest, and restarts the app's
-services.
+Glue between a Rails app and the hg-packer AMI it is deployed to with Capistrano.
 
-The AMI and its first-boot `rails-host-init` own everything that does not depend
-on the app's code: Ruby, Passenger, `passenger@.service`, the `/var/www/<app>`
-skeleton, credentials, logrotate and CloudWatch. This gem owns what changes with
-the app.
+The AMI provides the baseline every app shares: Ruby, the Postgres client, Passenger
+and `passenger@.service`, the `deployer` user, and (via first-boot `rails-host-init`)
+the `/var/www/<app>` skeleton, credentials, logrotate and CloudWatch. This gem lets
+the app declare what it needs on top of that baseline (system packages, systemd
+units and drop-ins for its own processes, which services to restart) and applies
+it on every deploy.
+
+Anything every app needs belongs in hg-packer, not in this gem's defaults.
 
 ## Install
 
@@ -43,8 +44,13 @@ and the files on the host, prints every disagreement, and fails if there is any.
 
 ### `:required_packages`
 
-Default `%w[systemd-zram-generator]`. Installed on every host with `apt-get` only
-when one is missing. Add to it with `append :required_packages, "libvips"`.
+The system packages the app needs beyond the AMI's baseline (e.g. `libvips`,
+`imagemagick`). Default `[]`. Installed on every release host with `apt-get`, and
+only when one is missing:
+
+```ruby
+append :required_packages, "libvips", "poppler-utils"
+```
 
 ### `:hgpacker_host_files`
 
@@ -60,8 +66,7 @@ removes the default. Use a lambda when the destination needs a setting:
 ```ruby
 set :hgpacker_host_files, -> {
   {
-    "/etc/systemd/system/caduceus@.service" => { source: "caduceus@.service.erb", roles: :app },
-    "/etc/systemd/zram-generator.conf" => nil
+    "/etc/systemd/system/caduceus@.service" => { source: "caduceus@.service.erb", roles: :app }
   }
 }
 ```
@@ -74,7 +79,6 @@ Defaults:
 | `/usr/local/bin/resque-pool-app` (0755) | `:resque` |
 | `/etc/systemd/system/resque-pool-watchdog@.service` and `.timer` | `:resque` |
 | `/etc/systemd/system/resque-pool@<app>.service.d/10-memory.conf`, only when `:hgpacker_resque_memory` is set | `:resque` |
-| `/etc/systemd/zram-generator.conf` (`min(ram / 4, 4096)`, zstd) | all |
 
 ### `:hgpacker_resque_memory`
 
@@ -92,9 +96,6 @@ merged over the defaults the same way as host files. `in:`/`wait:` go to SSHKit'
 | `passenger@<app>` | `:web`, in sequence, 5 s apart | `reload-or-restart` |
 | `resque-pool@<app>` | `:resque` | `reload-or-restart` |
 | `resque-pool-watchdog@<app>.timer` | `:resque` | `start` |
-| `systemd-zram-setup@zram0` | all | `start` (not enabled; it is generated) |
-
-If you remove the zram config, remove `systemd-zram-setup@zram0` too.
 
 ### `:hgpacker_manifest_path`
 

@@ -21,7 +21,7 @@ To exercise the rake wiring without hosts, make a throwaway Capfile that require
 
 ## Architecture
 
-Boundary: the hg-packer AMI and its first-boot `rails-host-init` own credentials, logrotate, CloudWatch and the `/var/www/<app>` skeleton. This gem owns only what changes with the app (packages, systemd units/drop-ins, wrappers, service restarts). Don't add tasks that duplicate `rails-host-init`.
+Boundary: this gem is glue between an app and the hg-packer AMI. The AMI owns the baseline every app shares (Ruby, Postgres client, Passenger, the `deployer` user) and its first-boot `rails-host-init` owns credentials, logrotate, CloudWatch and the `/var/www/<app>` skeleton. This gem owns only what the app declares on top (packages, systemd units/drop-ins for the app's own processes, service restarts). Don't ship app-agnostic defaults or duplicate `rails-host-init`; collect anything that belongs in the AMI in `../planning/rails-fleet-ami/hg-packer-changes.md` instead of changing hg-packer from here.
 
 - `lib/capistrano/hgpacker.rb` is the real entry point: it requires the helpers and `load`s each rake file under `lib/capistrano/tasks/`. A new task file does nothing until it is added there. (`lib/capistrano-hgpacker.rb` is deliberately empty; Bundler.require loads it in the app.)
 - Plain-Ruby logic (merging settings, rendering/locating sources, remote-state parsing, manifest and drift) lives in `lib/capistrano/hgpacker/*.rb` so it can be specced without SSH. Keep the rake files thin.
