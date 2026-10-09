@@ -205,5 +205,5 @@ bundle exec rspec
 bundle exec rubocop
 ```
 
-The specs cover the plain-Ruby helpers. To check the task wiring without hosts,
-point a throwaway Capfile at this gem and run `cap <stage> deploy --dry-run --trace`.
+The specs cover the Ruby helpers, the tasks (via `cap --dry-run` against the app in
+`spec/fixtures/app`), and `resque-pool-app` (under bash with a fake `ps`).

@@ -10,14 +10,19 @@ A Capistrano 3 plugin gem providing server-setup and deploy tasks for Rails apps
 
 ```sh
 bundle install
-bundle exec rspec            # specs cover the plain-Ruby helpers only
+bundle exec rspec            # ~2s; includes cap --dry-run subprocesses
 bundle exec rubocop
 gem build capistrano-hgpacker.gemspec
 ```
 
 `spec.files` comes from `git ls-files`, so new files (including `files/`) must be committed (or at least staged) before they ship in a built gem.
 
-To exercise the rake wiring without hosts, make a throwaway Capfile that requires `capistrano/deploy` then `capistrano/hgpacker`, and run `cap <stage> deploy --dry-run --trace` with `BUNDLE_GEMFILE` pointing at this repo's Gemfile.
+Specs come in three layers:
+- `spec/capistrano/hgpacker/` — the plain-Ruby helpers.
+- `spec/tasks_spec.rb` — runs `cap --dry-run` in a subprocess against `spec/fixtures/app` (stages `production`, every setting used; `plain`, nothing set) via `spec/support/cap.rb`, and asserts on hook order and the commands each host gets. Dry-run `capture` returns "", so every host looks empty: the "already current, skip" paths can only be tested in the helper specs.
+- `spec/resque_pool_app_spec.rb` — runs `files/resque-pool-app` under bash with a temp `APPS_ROOT` and a fake `ps` on `PATH`.
+
+Nothing tests the systemd unit files themselves; `systemd-analyze verify` needs Linux.
 
 ## Architecture
 
