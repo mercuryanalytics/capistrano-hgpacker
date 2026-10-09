@@ -1,0 +1,32 @@
+[Unit]
+Description=Resque Pool worker manager for %i
+After=network.target
+
+[Service]
+# oneshot + RemainAfterExit: hot-swap needs two managers to coexist (tracked via
+# a lock file, not a pidfile), which fights systemd's single-MainPID + cgroup
+# reaping. oneshot runs start/reload/stop *hooks* and holds `active (exited)`
+# across hot-swaps without tracking a long-lived main process.
+Type=oneshot
+RemainAfterExit=yes
+User=deployer
+Group=deployer
+EnvironmentFile=-/etc/rails-host.env
+# `-` so a missing `current` (rebooted before the first Capistrano deploy) is
+# non-fatal: ExecStart still runs and the wrapper's no-op gate fires. The
+# wrapper cd's into current itself before launching.
+WorkingDirectory=-/var/www/%i/current
+# Never let systemd signal the cgroup: draining workers (and the manager) must
+# be left alone so in-flight jobs finish. KillSignal=SIGQUIT defensively avoids
+# the job-killing TERM path even if systemd ever does signal the manager.
+KillMode=process
+KillSignal=SIGQUIT
+# Backstop for a hung `down` only — NOT a cap on job runtime. `down` sends QUIT
+# and returns immediately; KillMode=process protects the draining work.
+TimeoutStopSec=60
+ExecStart=/usr/local/bin/resque-pool-app %i up
+ExecReload=/usr/local/bin/resque-pool-app %i up
+ExecStop=/usr/local/bin/resque-pool-app %i down
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,144 @@
+#!/bin/bash
+
+warn () { echo -e "$1" >&2; }
+log ()  { echo "resque-pool-app: $*"; }
+
+# Identity (RAILS_ENV) comes from the host's converged identity file when run by
+# hand; resque-pool@.service also injects it via EnvironmentFile.
+[ -f /etc/rails-host.env ] && . /etc/rails-host.env
+
+usage() {
+  cat <<EOD
+Usage: resque-pool-app <app> <command>
+
+Commands:
+   up        Start a pool for <app>, hot-swapping out any existing one
+   down      Gracefully stop <app>'s pool (QUIT; returns immediately)
+   status    Report <app>'s manager(s) and lock-file state
+   help      Show this message
+EOD
+}
+
+# Resolve the Fullstaq toolchain version-agnostically from the single-source
+# symlink (no rbenv). install-fullstaq-ruby.sh points rails-ruby at the chosen
+# interpreter, so dirname(readlink) gives the bin dir holding `bundle`.
+ruby_bin() {
+  dirname "$(readlink -f /usr/local/bin/rails-ruby)"
+}
+
+# Discover this app's resque-pool manager(s) by procline — the same
+# `ps -e -o pid= -o command=` approach Resque::Pool::Killer uses. The manager
+# carries the `-a <app>` app-name as `[<app>]`; forked workers reset their
+# procline to the Resque `resque-<ver>: ...` form (no "pool"), so only managers
+# match.
+list_managers() {
+  # ps procline match (not pgrep) deliberately mirrors Resque::Pool::Killer.
+  # shellcheck disable=SC2009
+  ps -e -o pid= -o command= \
+    | grep -E "resque-pool.*\[$APP\]" \
+    | grep -v grep \
+    | awk '{print $1}'
+}
+
+up() {
+  # Graceful no-op gate: no app deployed yet (or a non-resque app) → do nothing
+  # and succeed, so "always enable, never disable" costs nothing on non-resque
+  # servers and the oneshot unit still settles to `active (exited)`.
+  if [ ! -f "$APPDIR/current/config/resque-pool.yml" ]; then
+    log "no resque-pool.yml at $APPDIR/current/config — nothing to start"
+    exit 0
+  fi
+
+  RUBY_BIN=$(ruby_bin)
+  export PATH="$RUBY_BIN:$PATH"
+
+  cd "$APPDIR/current" || exit 1
+
+  # --no-pidfile + -k (kill-others) + an explicit lock under release-stable
+  # shared/pids is the hot-swap: a new manager spawns workers on the new code,
+  # then SIGINTs the old manager. With TERM_CHILD unset, old workers finish their
+  # current job on the old code and self-exit; the old manager exits immediately.
+  # At boot (no existing pool) -k is a no-op, so `up` serves cold start *and*
+  # reload. --daemon double-forks and the CLI exits 0 → oneshot ExecStart
+  # succeeds. Use the short `-l` flag (the gem's --lock long form has a
+  # missing-comma bug).
+  exec "$RUBY_BIN/bundle" exec resque-pool \
+    --daemon --no-pidfile \
+    -k \
+    -l "$LOCK_FILE" \
+    -E "$RAILS_ENV" \
+    -a "$APP" \
+    -o "$STDOUT_LOG" \
+    -e "$STDERR_LOG"
+}
+
+down() {
+  local pids
+  pids=$(list_managers)
+  if [ -z "$pids" ]; then
+    log "no running resque-pool manager for $APP"
+    exit 0
+  fi
+
+  # QUIT: workers finish the job in flight, then the manager exits once they're
+  # done. Return immediately — do NOT wait. Our jobs can run for hours, so
+  # blocking systemctl stop until they drain is pointless; KillMode=process
+  # already keeps systemd from SIGKILLing the draining manager/workers, so an
+  # in-flight job is not killed by a stop.
+  kill -QUIT $pids
+  log "sent QUIT to resque-pool manager(s) for $APP: $pids"
+}
+
+status() {
+  local pids
+  pids=$(list_managers)
+  if [ -n "$pids" ]; then
+    echo "resque-pool manager(s) for $APP: $pids"
+  else
+    echo "no resque-pool manager running for $APP"
+  fi
+  if [ -f "$LOCK_FILE" ]; then
+    echo "lock file: $LOCK_FILE (held)"
+  else
+    echo "lock file: none at $LOCK_FILE"
+  fi
+}
+
+APP=$1; shift
+ACTION=$1; shift
+
+# sanity checks
+[ ! "$APP" ] && warn "Please specify the application to use" && exit 1
+
+if [ "$APP" == "--help" ]; then
+  usage && exit 0
+fi
+
+APPS_ROOT="${APPS_ROOT:-/var/www}"
+APPDIR="$APPS_ROOT/$APP"
+if [ ! -d "$APPDIR" ]; then
+  warn "Application $APP not found at $APPDIR"
+  exit 1
+fi
+
+LOCK_FILE="$APPDIR/shared/pids/resque-pool.lock"
+STDOUT_LOG="$APPDIR/shared/log/resque-pool.stdout.log"
+STDERR_LOG="$APPDIR/shared/log/resque-pool.stderr.log"
+
+case "$ACTION" in
+  help)
+    usage && exit 0
+  ;;
+  up)
+    up
+  ;;
+  down)
+    down
+  ;;
+  status)
+    status
+  ;;
+  *)
+    usage && exit 1
+  ;;
+esac
