@@ -70,9 +70,9 @@ RSpec.describe "resque-pool-app", type: :task do
 
     it "reports the lock file" do
       configure_pool
-      expect(run("talaria", "status").first).to include("lock file: none at #{app_dir}/shared/pids/resque-pool.lock")
-      FileUtils.mkdir_p(File.join(app_dir, "shared/pids"))
-      FileUtils.touch(File.join(app_dir, "shared/pids/resque-pool.lock"))
+      expect(run("talaria", "status").first).to include("lock file: none at #{app_dir}/shared/tmp/pids/resque-pool.lock")
+      FileUtils.mkdir_p(File.join(app_dir, "shared/tmp/pids"))
+      FileUtils.touch(File.join(app_dir, "shared/tmp/pids/resque-pool.lock"))
       expect(run("talaria", "status").first).to include("(held)")
     end
   end
