@@ -1,0 +1,10 @@
+[Unit]
+Description=Restart the resque-pool manager for %i if it has died
+After=resque-pool@%i.service
+
+[Service]
+# resque-pool@ is a oneshot, so Restart=on-failure cannot apply to it. Act only
+# while the unit is active (a deliberate stop is left alone) and only on status 3
+# (configured, no manager); 4 means the app has no pool to run.
+Type=oneshot
+ExecStart=/bin/sh -c 'systemctl is-active --quiet resque-pool@%i || exit 0; /usr/local/bin/resque-pool-app %i status >/dev/null; [ $$? -ne 3 ] || exec systemctl reload resque-pool@%i'

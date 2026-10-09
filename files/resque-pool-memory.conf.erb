@@ -1,0 +1,8 @@
+<% memory = fetch(:hgpacker_resque_memory) -%>
+[Service]
+<% if memory[:high] -%>
+MemoryHigh=<%= memory[:high] %>
+<% end -%>
+<% if memory[:max] -%>
+MemoryMax=<%= memory[:max] %>
+<% end -%>
