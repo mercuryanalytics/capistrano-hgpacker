@@ -18,7 +18,7 @@ Requires Capistrano 3 and Ruby 3.1+ on the machine running `cap`.
 ```ruby
 # Gemfile
 group :development do
-  gem "capistrano-hgpacker", github: "mercuryanalytics/capistrano-hgpacker", tag: "v0.1.0", require: false
+  gem "capistrano-hgpacker", github: "mercuryanalytics/capistrano-hgpacker", tag: "v0.9.0", require: false
 end
 ```
 
