@@ -1,18 +1,8 @@
 # frozen_string_literal: true
 
-namespace :load do
-  task :defaults do
-    set :required_packages, []
-
-    set :logrotate_conf_path, -> { File.join("/etc", "logrotate.d", "#{fetch(:application)}_#{fetch(:stage)}") }
-
-    set :cloudwatch_agent_user, :ubuntu
-    set :cloudwatch_file_path, shared_path.join("log/#{fetch(:stage)}.json")
-    set :cloudwatch_group_name, "workbench_#{fetch(:stage)}.json"
-    set :cloudwatch_stream_name, "{instance_id}"
-    set :cloudwatch_conf_path, -> { File.join("/opt", "aws", "amazon-cloudwatch-agent", "etc", "amazon-cloudwatch-agent.d", "#{fetch(:application)}_#{fetch(:stage)}.json") }
-  end
-end
+require "json"
+require "securerandom"
+require "stringio"
 
 namespace :hgpacker do
   def passenger_path
@@ -23,45 +13,68 @@ namespace :hgpacker do
     shared_path.join(fetch(:credentials_path, "config/credentials"))
   end
 
+  task :defaults do
+    set :required_packages, []
+
+    set :logrotate_conf_path, -> { File.join("/etc", "logrotate.d", "#{fetch(:application)}_#{fetch(:stage)}") }
+
+    set :cloudwatch_agent_user, :ubuntu
+    set :cloudwatch_file_path, shared_path.join("log/#{fetch(:stage)}.json")
+    set :cloudwatch_group_name, "#{fetch(:application)}_#{fetch(:stage)}.json"
+    set :cloudwatch_stream_name, "{instance_id}"
+    set :cloudwatch_conf_path, -> { File.join("/opt", "aws", "amazon-cloudwatch-agent", "etc", "amazon-cloudwatch-agent.d", "#{fetch(:application)}_#{fetch(:stage)}.json") }
+  end
+  after "load:defaults", "hgpacker:defaults"
+
   namespace :check do
     task :directories do
       on release_roles :app do
+        sudo :mkdir, "-p", deploy_path
+        sudo :chown, "-R", "$USER:", deploy_path
         execute :mkdir, "-p", passenger_path, credentials_path
       end
     end
   end
 
-  desc "Install application keys from Secrets Manager"
+  desc "Install application keys"
   task :keys do
     invoke "hgpacker:keys:credentials"
-    invoke "hgpacker:keys:google_translate"
   end
 
   namespace :keys do
-    desc "Install credentials key from Secrets Manager"
-    task :credentials do
-      rails_env = fetch(:rails_env)
-      key_id = "#{fetch(:application)}/credentials/production"
-      key_file = credentials_path.join("#{rails_env}.key")
+    task :ensure_credentials_path do
       on release_roles :app do
-        execute :aws, :secretsmanager, "get-secret-value",
-                "--secret-id", key_id,
-                "|", :jq, "-r", "'.SecretString|fromjson.#{rails_env}'",
-                ">", key_file
+        execute :mkdir, "-p", credentials_path
       end
     end
 
-    desc "Install Google Translate key from Secrets Manager"
-    task :google_translate do
-      key_id = "#{fetch(:application)}/credentials/google-translate"
-      key_file = credentials_path.join("translate-credentials.json")
+    desc "Upload the local Rails credentials key"
+    task :credentials do
+      rails_env = fetch(:rails_env)
+      key_file = credentials_path.join("#{rails_env}.key")
       on release_roles :app do
-        execute :aws, :secretsmanager, "get-secret-value",
-                "--secret-id", key_id,
-                "|", :jq, "-r", "'.SecretString|fromjson'",
-                ">", key_file
+        upload! "config/credentials/#{rails_env}.key", key_file
       end
     end
+    before :credentials, :ensure_credentials_path
+
+    desc "Install Google Translate key (local GOOGLE_APPLICATION_CREDENTIALS file, else Secrets Manager)"
+    task :google_translate do
+      key_file = credentials_path.join("translate-credentials.json")
+      key_source = ENV.fetch("GOOGLE_APPLICATION_CREDENTIALS", nil)
+      key_id = "#{fetch(:application)}/credentials/google-translate"
+      on release_roles :app do
+        if key_source && File.exist?(key_source)
+          upload! key_source, key_file
+        else
+          execute :aws, :secretsmanager, "get-secret-value",
+                  "--secret-id", key_id,
+                  "|", :jq, "-r", "'.SecretString|fromjson'",
+                  ">", key_file
+        end
+      end
+    end
+    before :google_translate, :ensure_credentials_path
   end
 
   desc "Install debian packages required by the application"
@@ -70,7 +83,13 @@ namespace :hgpacker do
     next if packages.empty?
 
     on release_roles :app do
-      sudo :"apt-get", :install, "-y", *packages
+      with DEBIAN_FRONTEND: "noninteractive" do
+        sudo :"apt-get", :install, "-qq", "-y",
+          "-o", "Dpkg::Progress-Fancy=0",
+          "-o", "APT::Color=0",
+          "-o", "Dpkg::Use-Pty=0",
+          *packages
+      end
     end
   end
 
@@ -143,4 +162,12 @@ namespace :hgpacker do
       end
     end
   end
+end
+
+desc "Configure server after initial build"
+task :hgpacker do
+  invoke "hgpacker:required_packages"
+  invoke "hgpacker:check:directories"
+  invoke "hgpacker:logs"
+  invoke "hgpacker:keys"
 end
