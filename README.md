@@ -22,11 +22,27 @@ group :development do
 end
 ```
 
+In the Capfile, add the require alongside the other plugin requires, where the
+Capfile that `cap install` generated keeps them:
+
 ```ruby
-# Capfile — after capistrano/deploy, whose tasks it hooks
+# Capfile
+require "capistrano/setup"
 require "capistrano/deploy"
+# ...
+
+require "capistrano/bundler"
+require "capistrano/rails/migrations"
+require "whenever/capistrano"
 require "capistrano/hgpacker"
+
+# Load custom tasks from `lib/capistrano/tasks` if you have any defined
+Dir.glob("lib/capistrano/tasks/*.rake").each {|r| import r }
 ```
+
+Anywhere after `require "capistrano/deploy"` works: the gem hooks tasks that
+file defines, and fails to load before them. Grouping it with the other plugins
+keeps the app's changes to the generated Capfile in one place.
 
 The gem restarts Passenger itself through `deploy:restart`. Remove
 `require "capistrano/passenger"` from the Capfile: it adds its own action to
@@ -39,7 +55,6 @@ that restart the same services.
 The gem acts on three roles: `:web` (Passenger), `:resque` (the resque pool), and
 every release host (packages, and any host file or service with `roles: :all`).
 Give the `resque` role only to hosts that should run workers.
-
 
 ## What runs when
 
