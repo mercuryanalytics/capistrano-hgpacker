@@ -49,9 +49,6 @@ up() {
     exit 0
   fi
 
-  # Capistrano creates shared/tmp/pids only for apps that link tmp/pids.
-  mkdir -p "$(dirname "$LOCK_FILE")"
-
   RUBY_BIN=$(ruby_bin)
   export PATH="$RUBY_BIN:$PATH"
 

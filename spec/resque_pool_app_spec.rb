@@ -83,12 +83,6 @@ RSpec.describe "resque-pool-app", type: :task do
       expect(status).to eq(0)
       expect(output).to include("nothing to start")
     end
-
-    it "creates the lock file's directory before starting the pool" do
-      configure_pool
-      run("talaria", "up")
-      expect(File.directory?(File.join(app_dir, "shared/tmp/pids"))).to be(true)
-    end
   end
 
   describe "down" do
