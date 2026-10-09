@@ -5,6 +5,7 @@ require "capistrano/hgpacker/settings"
 require "capistrano/hgpacker/host_file"
 require "capistrano/hgpacker/manifest"
 
-load File.expand_path("tasks/hgpacker.rake", __dir__)
-load File.expand_path("tasks/services.rake", __dir__)
-load File.expand_path("tasks/resque.rake", __dir__)
+RSpec.configure do |config|
+  config.disable_monkey_patching!
+  config.expect_with(:rspec) {|c| c.syntax = :expect }
+end

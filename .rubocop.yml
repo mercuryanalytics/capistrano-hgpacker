@@ -1,8 +1,7 @@
-require:
+plugins:
   - rubocop-rspec
 
 AllCops:
-  TargetRailsVersion: 7.0
   NewCops: enable
   Exclude:
     - bin/*
@@ -37,9 +36,6 @@ Metrics:
   Enabled: false
 
 Naming/MethodParameterName:
-  Enabled: false
-
-Performance/StringInclude:
   Enabled: false
 
 RSpec/AnyInstance:
@@ -94,3 +90,7 @@ Style/StringLiterals:
 
 Style/YodaCondition:
   EnforcedStyle: forbid_for_equality_operators_only
+
+Naming/FileName:
+  Exclude:
+    - lib/capistrano-hgpacker.rb
