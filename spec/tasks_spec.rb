@@ -25,6 +25,16 @@ RSpec.describe "hgpacker tasks", type: :task do
       expect(position("hgpacker:restart")).to be > position("deploy:restart")
       expect(position("hgpacker:restart")).to be < position("deploy:finished")
     end
+
+    it "starts the resque pool on resque hosts only when a deploy fails" do
+      failed = Cap.run("production", "deploy:failed").commands
+      expect(failed["aws0"]).to eq(["sudo systemctl start resque-pool@talaria"])
+      expect(failed["aws1"]).to be_empty
+    end
+
+    it "does not start a resque pool the app removed from its services" do
+      expect(Cap.run("poolless", "deploy:failed").all_commands).to be_empty
+    end
   end
 
   context "with an app that uses every setting" do
@@ -84,7 +94,7 @@ RSpec.describe "hgpacker tasks", type: :task do
                                                "sudo systemctl reload-or-restart caduceus@talaria"
                                              ])
       order = restart.all_commands.grep(%r{reload-or-restart}).map {|c| c.split.last }.uniq
-      expect(order).to eq(%w[passenger@talaria resque-pool@talaria caduceus@talaria])
+      expect(order).to eq(%w[resque-pool@talaria passenger@talaria caduceus@talaria])
     end
   end
 
@@ -94,6 +104,10 @@ RSpec.describe "hgpacker tasks", type: :task do
 
     it "installs no packages and no files on a web host" do
       expect(setup["web0"]).to be_empty
+    end
+
+    it "starts nothing when a deploy fails" do
+      expect(Cap.run("plain", "deploy:failed").all_commands).to be_empty
     end
 
     it "restarts only passenger" do

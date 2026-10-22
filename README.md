@@ -63,6 +63,7 @@ Give the `resque` role only to hosts that should run workers.
 | `before deploy` | `hgpacker:resque:check_stale` | Fails the deploy if a resque-pool master on a `:resque` host is older than the last release cutover |
 | `after deploy:check` | `hgpacker:setup` | `required_packages`, then `host_files` |
 | `after deploy:publishing` | `deploy:restart` → `hgpacker:restart` | `systemctl enable` and the configured verb for each service |
+| `after deploy:failed` | `hgpacker:resque:start` | `systemctl start resque-pool@<app>` on its hosts, unless removed from `:hgpacker_services` |
 
 Every task can also be run by hand:
 
@@ -73,6 +74,7 @@ Every task can also be run by hand:
 | `hgpacker:host_files` | Install changed host files, `daemon-reload` if needed, rewrite the manifest |
 | `hgpacker:restart` | Enable each service and apply its verb |
 | `hgpacker:resque:check_stale` | The stale-master check |
+| `hgpacker:resque:start` | Start `resque-pool@<app>` on `:resque` hosts |
 | `hgpacker:check` | Compare the configured files, each host's manifest, and the files on the host; print every disagreement and fail if there is any |
 
 `hgpacker:check` compares content digests only; a changed mode or owner is not
@@ -140,16 +142,25 @@ the next starts. Defaults:
 
 | Unit | Roles | Verb |
 |---|---|---|
-| `passenger@<app>` | `:web`, in sequence, 5 s apart | `reload-or-restart` |
 | `resque-pool@<app>` | `:resque` | `reload-or-restart` |
 | `resque-pool-watchdog@<app>.timer` | `:resque` | `start` |
+| `passenger@<app>` | `:web`, in sequence, 5 s apart | `reload-or-restart` |
+
+The resque pool restarts first, so a failed Passenger restart cannot leave the
+old pool running a release that `deploy:cleanup` may later prune.
+The cost: a failed Passenger restart leaves new-release workers behind old-release
+web processes until the next deploy.
 
 ```ruby
 set :hgpacker_services, -> { { "caduceus@#{fetch(:application)}" => { roles: :app } } }
 ```
 
-Only `deploy:restart` is hooked. A service that must also stop around migrations
-or start again on `deploy:failed` keeps those hooks in the app. Removing a service
+Only `deploy:restart` is hooked, plus `hgpacker:resque:start` on `deploy:failed`.
+That start follows this hash: removing `resque-pool@<app>` skips it, and its
+`roles` pick the hosts. A failed start warns rather than raising, so the app's own
+`deploy:failed` hooks still run.
+Any other service that must stop around migrations or start again on
+`deploy:failed` keeps those hooks in the app. Removing a service
 from the hash does not stop or disable it on the host.
 ### `:hgpacker_manifest_path`
 

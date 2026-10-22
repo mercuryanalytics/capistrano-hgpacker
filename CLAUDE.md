@@ -19,7 +19,7 @@ gem build capistrano-hgpacker.gemspec
 
 Specs come in three layers:
 - `spec/capistrano/hgpacker/` — the plain-Ruby helpers.
-- `spec/tasks_spec.rb` — runs `cap --dry-run` in a subprocess against `spec/fixtures/app` (stages `production`, every setting used; `plain`, nothing set) via `spec/support/cap.rb`, and asserts on hook order and the commands each host gets. Dry-run `capture` returns "", so every host looks empty: the "already current, skip" paths can only be tested in the helper specs.
+- `spec/tasks_spec.rb` — runs `cap --dry-run` in a subprocess against `spec/fixtures/app` (stages `production`, every setting used; `plain`, nothing set; `poolless`, a resque host with the pool service removed) via `spec/support/cap.rb`, and asserts on hook order and the commands each host gets. Dry-run `capture` returns "", so every host looks empty: the "already current, skip" paths can only be tested in the helper specs.
 - `spec/resque_pool_app_spec.rb` — runs `files/resque-pool-app` under bash with a temp `APPS_ROOT` and a fake `ps` on `PATH`.
 
 Nothing tests the systemd unit files themselves; `systemd-analyze verify` needs Linux.
@@ -32,7 +32,7 @@ Boundary: this gem is glue between an app and the hg-packer AMI. The AMI owns th
 - Plain-Ruby logic (merging settings, rendering/locating sources, remote-state parsing, manifest and drift) lives in `lib/capistrano/hgpacker/*.rb` so it can be specced without SSH. Keep the rake files thin.
 - `tasks/hgpacker.rake` — defaults, `hgpacker:setup` (`required_packages` + `host_files`, hooked after `deploy:check`), `hgpacker:check`.
 - `tasks/services.rake` — `hgpacker:restart`, hooked via `deploy:restart` after `deploy:publishing`.
-- `tasks/resque.rake` — `hgpacker:resque:check_stale`, hooked `before :deploy`.
+- `tasks/resque.rake` — `hgpacker:resque:check_stale`, hooked `before :deploy`, and `hgpacker:resque:start`, hooked `after "deploy:failed"`.
 - `files/` — default host-file sources. `resque-pool@.service` and `resque-pool-app` came from thoth's hosts (commit 9ed6cdd); keep later changes to them minimal and deliberate, since thoth's adoption is checked by diffing against that baseline.
 - Helpers are `def`s inside namespace blocks, which makes them global methods on the Rake DSL; prefix them `hgpacker_`.
 - Defaults are set in tasks hooked `after "load:defaults"`. Host files and services each have a gem default setting (`hgpacker_default_*`) and an app setting (`hgpacker_*`) merged over it by key, with `nil` removing a default.
