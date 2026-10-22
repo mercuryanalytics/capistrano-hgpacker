@@ -6,9 +6,9 @@ namespace :hgpacker do
     set :hgpacker_default_services, lambda {
       app = fetch(:application)
       {
-        "passenger@#{app}" => { roles: :web, verb: "reload-or-restart", in: :sequence, wait: 5 },
         "resque-pool@#{app}" => { roles: :resque, verb: "reload-or-restart" },
-        "resque-pool-watchdog@#{app}.timer" => { roles: :resque, verb: "start" }
+        "resque-pool-watchdog@#{app}.timer" => { roles: :resque, verb: "start" },
+        "passenger@#{app}" => { roles: :web, verb: "reload-or-restart", in: :sequence, wait: 5 }
       }
     }
   end

@@ -47,7 +47,16 @@ namespace :hgpacker do
         raise "resque-pool master #{stale.join(', ')} survived the previous deploy"
       end
     end
+
+    desc "Start the resque pool if a failed deploy left it stopped"
+    task :start do
+      on roles(:resque) do
+        execute :sudo, :systemctl, :start, "resque-pool@#{fetch(:application)}"
+      end
+    end
   end
 end
 
 before :deploy, "hgpacker:resque:check_stale"
+
+after "deploy:failed", "hgpacker:resque:start"
