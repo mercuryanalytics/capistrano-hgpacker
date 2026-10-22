@@ -50,8 +50,11 @@ namespace :hgpacker do
 
     desc "Start the resque pool if a failed deploy left it stopped"
     task :start do
-      on roles(:resque) do
-        execute :sudo, :systemctl, :start, "resque-pool@#{fetch(:application)}"
+      unit = "resque-pool@#{fetch(:application)}"
+      spec = hgpacker_merged_services[unit] or next
+
+      on release_roles(*Capistrano::Hgpacker::Settings.roles(spec)) do
+        warn "Could not start #{unit} on #{host}; start it by hand" unless execute(:sudo, :systemctl, :start, unit, raise_on_non_zero_exit: false)
       end
     end
   end

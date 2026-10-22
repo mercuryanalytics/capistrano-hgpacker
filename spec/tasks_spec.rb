@@ -31,6 +31,10 @@ RSpec.describe "hgpacker tasks", type: :task do
       expect(failed["aws0"]).to eq(["sudo systemctl start resque-pool@talaria"])
       expect(failed["aws1"]).to be_empty
     end
+
+    it "does not start a resque pool the app removed from its services" do
+      expect(Cap.run("poolless", "deploy:failed").all_commands).to be_empty
+    end
   end
 
   context "with an app that uses every setting" do

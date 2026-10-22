@@ -19,7 +19,7 @@ gem build capistrano-hgpacker.gemspec
 
 Specs come in three layers:
 - `spec/capistrano/hgpacker/` — the plain-Ruby helpers.
-- `spec/tasks_spec.rb` — runs `cap --dry-run` in a subprocess against `spec/fixtures/app` (stages `production`, every setting used; `plain`, nothing set) via `spec/support/cap.rb`, and asserts on hook order and the commands each host gets. Dry-run `capture` returns "", so every host looks empty: the "already current, skip" paths can only be tested in the helper specs.
+- `spec/tasks_spec.rb` — runs `cap --dry-run` in a subprocess against `spec/fixtures/app` (stages `production`, every setting used; `plain`, nothing set; `poolless`, a resque host with the pool service removed) via `spec/support/cap.rb`, and asserts on hook order and the commands each host gets. Dry-run `capture` returns "", so every host looks empty: the "already current, skip" paths can only be tested in the helper specs.
 - `spec/resque_pool_app_spec.rb` — runs `files/resque-pool-app` under bash with a temp `APPS_ROOT` and a fake `ps` on `PATH`.
 
 Nothing tests the systemd unit files themselves; `systemd-analyze verify` needs Linux.
